@@ -13,6 +13,9 @@
       --gray: #f4f6f8;
       --card-bg: #ffffff;
       --font: "Segoe UI", sans-serif;
+      --pastel-green: #d6f5df;
+      --pastel-yellow: #fff7cc;
+      --pastel-red: #fddcdc;
     }
 
     body {
@@ -32,64 +35,87 @@
     }
 
     .container {
-      max-width: 800px;
+      max-width: 100%;
       margin: 0 auto;
       padding: 0 16px;
+    }
+
+    .forecast-column {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .forecast-wrapper {
+      width: 100%;
+      max-width: 300px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .forecast-date {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      text-align: center;
     }
 
     .forecast-block {
       background: var(--card-bg);
       border-radius: 12px;
-      margin: 16px 0;
       padding: 10px;
-      display: flex;
+      width: 100%;
       box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: row;
       gap: 12px;
+      box-sizing: border-box;
     }
 
     .forecast-left {
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
+      justify-content: space-between;
       width: 80px;
+      padding: 8px 0;
     }
 
     .forecast-icon {
-      font-size: 34px;
-      margin-bottom: 8px;
+      font-size: 42px;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .grid-score {
-      width: 36px;
-      height: 36px;
-      border-radius: 8px;
+      width: 42px;
+      height: 42px;
+      font-size: 18px;
       font-weight: bold;
-      font-size: 16px;
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
       color: white;
+      flex: 1;
     }
 
-    .grid-units {
-  font-size: 10px;
-  font-weight: normal;
-  margin-left: 2px;
-  color: #555;
-}
-
     .play-low {
-      background: var(--red);
+      background-color: var(--red);
     }
 
     .play-medium {
-      background: var(--yellow);
+      background-color: var(--yellow);
       color: #222;
     }
 
     .play-high {
-      background: var(--green);
+      background-color: var(--green);
     }
 
     .forecast-right {
@@ -106,7 +132,19 @@
       padding: 6px;
       text-align: center;
       font-size: 13px;
+      min-height: 48px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
     }
+
+    .grid-cell.rain-good { background: var(--pastel-green); }
+    .grid-cell.rain-medium { background: var(--pastel-yellow); }
+    .grid-cell.rain-bad { background: var(--pastel-red); }
+
+    .grid-cell.wind-good { background: var(--pastel-green); }
+    .grid-cell.wind-medium { background: var(--pastel-yellow); }
+    .grid-cell.wind-bad { background: var(--pastel-red); }
 
     .grid-label {
       font-size: 11px;
@@ -118,29 +156,25 @@
       font-weight: bold;
     }
 
-    .forecast-row {
-      display: flex;
-      gap: 8px;
-      margin-top: 16px;
-    }
-
-    .forecast-row .forecast-block {
-      flex: 1;
-      margin: 0;
+    .grid-units {
+      font-size: 10px;
+      font-weight: normal;
+      margin-left: 2px;
+      color: #555;
     }
 
     .section-label {
       font-weight: 600;
-      font-size: 14px;
-      margin-top: 20px;
+      font-size: 16px;
+      margin: 32px 0 8px;
       text-align: center;
     }
 
     .date-label {
-      font-size: 24px;
+      font-size: 22px;
       font-weight: 600;
       margin-top: 24px;
-      text-align: left;
+      text-align: center;
     }
   </style>
 </head>
@@ -148,8 +182,11 @@
   <header>Lexington Disc Golf Weather</header>
   <div class="container">
     <div class="date-label" id="today-label">Loading...</div>
-    <div class="section-label" id="now-label">Now | +1hr | +2hr</div>
-    <div class="forecast-row" id="current-conditions"></div>
+    <div class="section-label">Current Conditions</div>
+    <div class="forecast-column" id="current-conditions"></div>
+
+    <div class="section-label">Next 6 Days</div>
+    <div class="forecast-column" id="six-day-forecast"></div>
   </div>
 
   <script>
@@ -184,17 +221,36 @@
       return box;
     }
 
-function createGridCell(label, value, unit = "") {
-  const div = document.createElement("div");
-  div.className = "grid-cell";
-  div.innerHTML = `
-    <div class="grid-label">${label}</div>
-    <div class="grid-value">${value}<span class="grid-units">${unit}</span></div>
-  `;
-  return div;
-}
+    function getRainClass(precip) {
+      if (precip > 80) return "rain-bad";
+      if (precip > 40) return "rain-medium";
+      return "rain-good";
+    }
 
-    function createForecastBlock(data) {
+    function getWindClass(wind) {
+      if (wind > 20) return "wind-bad";
+      if (wind > 10) return "wind-medium";
+      return "wind-good";
+    }
+
+    function createGridCell(label, value, unit = "", type = "") {
+      const div = document.createElement("div");
+      div.className = `grid-cell ${type}`;
+      div.innerHTML = `
+        <div class="grid-label">${label}</div>
+        <div class="grid-value">${value}<span class="grid-units">${unit}</span></div>
+      `;
+      return div;
+    }
+
+    function createForecastWrapper(dateLabel, forecastData) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "forecast-wrapper";
+
+      const dateDiv = document.createElement("div");
+      dateDiv.className = "forecast-date";
+      dateDiv.textContent = dateLabel;
+
       const block = document.createElement("div");
       block.className = "forecast-block";
 
@@ -203,25 +259,28 @@ function createGridCell(label, value, unit = "") {
 
       const icon = document.createElement("div");
       icon.className = "forecast-icon";
-      icon.textContent = data.emoji;
+      icon.textContent = forecastData.emoji;
 
-      const scoreBox = createPlayabilityBox(data.score);
+      const scoreBox = createPlayabilityBox(forecastData.score);
 
       left.appendChild(icon);
       left.appendChild(scoreBox);
 
       const right = document.createElement("div");
       right.className = "forecast-right";
-      right.appendChild(createGridCell("Temp", data.temp, "°F"));
-      right.appendChild(createGridCell("Humidity", data.humidity, "%"));
-      right.appendChild(createGridCell("Rain %", data.precip, "%"));
-      right.appendChild(createGridCell("Rain (in)", data.rain, " in"));
-      right.appendChild(createGridCell("Wind", data.wind, " mph"));
-      right.appendChild(createGridCell("Gust", data.gust, " mph"));
+      right.appendChild(createGridCell("Temp", forecastData.temp, "°F"));
+      right.appendChild(createGridCell("Humidity", forecastData.humidity, "%"));
+      right.appendChild(createGridCell("Rain %", forecastData.precip, "%", getRainClass(forecastData.precip)));
+      right.appendChild(createGridCell("Rain (in)", forecastData.rain, " in"));
+      right.appendChild(createGridCell("Wind", forecastData.wind, " mph", getWindClass(forecastData.wind)));
+      right.appendChild(createGridCell("Gust", forecastData.gust, " mph"));
 
       block.appendChild(left);
       block.appendChild(right);
-      return block;
+      wrapper.appendChild(dateDiv);
+      wrapper.appendChild(block);
+
+      return wrapper;
     }
 
     fetch(url)
@@ -233,43 +292,55 @@ function createGridCell(label, value, unit = "") {
           return dt.getHours() === now.getHours() && dt.getDate() === now.getDate();
         });
 
-        const container = document.getElementById("current-conditions");
-        const todayLabel = document.getElementById("today-label");
-        const nowLabel = document.getElementById("now-label");
-
-        const todayStr = now.toLocaleDateString(undefined, {
+        const todayKey = now.toISOString().slice(0, 10);
+        document.getElementById("today-label").textContent = now.toLocaleDateString(undefined, {
           weekday: "long",
           month: "short",
           day: "numeric"
         });
-        todayLabel.textContent = todayStr;
 
-        const hourLabels = ["Now", "+1 hr", "+2 hr"];
-        nowLabel.textContent = hourLabels.join(" | ");
+        const currentContainer = document.getElementById("current-conditions");
+        const dailyContainer = document.getElementById("six-day-forecast");
 
         for (let i = 0; i < 3; i++) {
           const idx = nowIndex + i;
-          const emoji = getEmoji(data.hourly.weathercode[idx]);
-          const temp = data.hourly.temperature_2m[idx];
-          const precip = data.hourly.precipitation_probability[idx];
-          const rain = data.hourly.precipitation[idx];
-          const wind = data.hourly.windspeed_10m[idx];
-          const gust = data.hourly.windgusts_10m[idx];
-          const humidity = data.hourly.relative_humidity_2m[idx];
-          const score = getPlayabilityScore(precip, wind);
+          const forecastDate = new Date(data.hourly.time[idx]);
+          const label = i === 0 ? "Now" : forecastDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
-          const block = createForecastBlock({
-            emoji,
-            temp,
-            precip,
-            rain,
-            wind,
-            gust,
-            humidity,
-            score
+          const wrapper = createForecastWrapper(label, {
+            emoji: getEmoji(data.hourly.weathercode[idx]),
+            temp: data.hourly.temperature_2m[idx],
+            precip: data.hourly.precipitation_probability[idx],
+            rain: data.hourly.precipitation[idx],
+            wind: data.hourly.windspeed_10m[idx],
+            gust: data.hourly.windgusts_10m[idx],
+            humidity: data.hourly.relative_humidity_2m[idx],
+            score: getPlayabilityScore(data.hourly.precipitation_probability[idx], data.hourly.windspeed_10m[idx])
           });
 
-          container.appendChild(block);
+          currentContainer.appendChild(wrapper);
+        }
+
+        const added = new Set();
+        for (let i = 0; i < data.hourly.time.length; i++) {
+          const dt = new Date(data.hourly.time[i]);
+          const hour = dt.getHours();
+          const dateKey = dt.toISOString().slice(0, 10);
+          if (hour === 17 && !added.has(dateKey) && dateKey !== todayKey) {
+            added.add(dateKey);
+            const wrapper = createForecastWrapper(dt.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }), {
+              emoji: getEmoji(data.hourly.weathercode[i]),
+              temp: data.hourly.temperature_2m[i],
+              precip: data.hourly.precipitation_probability[i],
+              rain: data.hourly.precipitation[i],
+              wind: data.hourly.windspeed_10m[i],
+              gust: data.hourly.windgusts_10m[i],
+              humidity: data.hourly.relative_humidity_2m[i],
+              score: getPlayabilityScore(data.hourly.precipitation_probability[i], data.hourly.windspeed_10m[i])
+            });
+            dailyContainer.appendChild(wrapper);
+            if (added.size >= 6) break;
+          }
         }
       })
       .catch(err => {
