@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lexington Disc Golf Weather</title>
+  <style>
+    :root {
+      --green: #27ae60;
+      --yellow: #f1c40f;
+      --red: #e74c3c;
+      --blue: #3498db;
+      --gray: #f4f6f8;
+      --card-bg: #ffffff;
+      --font: "Segoe UI", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--font);
+      background: var(--gray);
+      color: #333;
+    }
+
+    header {
+      background: var(--blue);
+      color: white;
+      padding: 14px 20px;
+      font-size: 20px;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 0 16px;
+    }
+
+    .forecast-block {
+      background: var(--card-bg);
+      border-radius: 12px;
+      margin: 16px 0;
+      padding: 10px;
+      display: flex;
+      box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
+      gap: 12px;
+    }
+
+    .forecast-left {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 80px;
+    }
+
+    .forecast-icon {
+      font-size: 34px;
+      margin-bottom: 8px;
+    }
+
+    .grid-score {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+
+    .grid-units {
+  font-size: 10px;
+  font-weight: normal;
+  margin-left: 2px;
+  color: #555;
+}
+
+    .play-low {
+      background: var(--red);
+    }
+
+    .play-medium {
+      background: var(--yellow);
+      color: #222;
+    }
+
+    .play-high {
+      background: var(--green);
+    }
+
+    .forecast-right {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      flex: 1;
+    }
+
+    .grid-cell {
+      background: #f9fafb;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      padding: 6px;
+      text-align: center;
+      font-size: 13px;
+    }
+
+    .grid-label {
+      font-size: 11px;
+      color: #555;
+    }
+
+    .grid-value {
+      font-size: 15px;
+      font-weight: bold;
+    }
+
+    .forecast-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .forecast-row .forecast-block {
+      flex: 1;
+      margin: 0;
+    }
+
+    .section-label {
+      font-weight: 600;
+      font-size: 14px;
+      margin-top: 20px;
+      text-align: center;
+    }
+
+    .date-label {
+      font-size: 24px;
+      font-weight: 600;
+      margin-top: 24px;
+      text-align: left;
+    }
+  </style>
+</head>
+<body>
+  <header>Lexington Disc Golf Weather</header>
+  <div class="container">
+    <div class="date-label" id="today-label">Loading...</div>
+    <div class="section-label" id="now-label">Now | +1hr | +2hr</div>
+    <div class="forecast-row" id="current-conditions"></div>
+  </div>
+
+  <script>
+    const lat = 38.0406;
+    const lon = -84.5037;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,precipitation,windspeed_10m,windgusts_10m,weathercode&temperature_unit=fahrenheit&windspeed_unit=mph&precipitation_unit=inch&timezone=America/New_York`;
+
+    function getEmoji(code) {
+      if (code === 0) return "☀️";
+      if ([1, 2].includes(code)) return "🌤️";
+      if (code === 3) return "☁️";
+      if ([45, 48].includes(code)) return "🌫️";
+      if ([51, 53, 55, 61, 63, 65].includes(code)) return "🌧️";
+      if ([71, 73, 75, 77, 85, 86].includes(code)) return "❄️";
+      if ([95, 96, 99].includes(code)) return "⛈️";
+      return "❓";
+    }
+
+    function getPlayabilityScore(precip, wind) {
+      let rainPenalty = precip > 80 ? 8 : precip > 60 ? 6 : precip > 40 ? 4 : precip > 20 ? 2 : 0;
+      let windPenalty = wind > 20 ? 6 : wind > 15 ? 4 : wind > 10 ? 2 : 0;
+      return Math.max(0, 10 - rainPenalty - windPenalty);
+    }
+
+    function createPlayabilityBox(score) {
+      const box = document.createElement("div");
+      box.className = "grid-score";
+      if (score <= 3) box.classList.add("play-low");
+      else if (score <= 6) box.classList.add("play-medium");
+      else box.classList.add("play-high");
+      box.textContent = score;
+      return box;
+    }
+
+function createGridCell(label, value, unit = "") {
+  const div = document.createElement("div");
+  div.className = "grid-cell";
+  div.innerHTML = `
+    <div class="grid-label">${label}</div>
+    <div class="grid-value">${value}<span class="grid-units">${unit}</span></div>
+  `;
+  return div;
+}
+
+    function createForecastBlock(data) {
+      const block = document.createElement("div");
+      block.className = "forecast-block";
+
+      const left = document.createElement("div");
+      left.className = "forecast-left";
+
+      const icon = document.createElement("div");
+      icon.className = "forecast-icon";
+      icon.textContent = data.emoji;
+
+      const scoreBox = createPlayabilityBox(data.score);
+
+      left.appendChild(icon);
+      left.appendChild(scoreBox);
+
+      const right = document.createElement("div");
+      right.className = "forecast-right";
+      right.appendChild(createGridCell("Temp", data.temp, "°F"));
+      right.appendChild(createGridCell("Humidity", data.humidity, "%"));
+      right.appendChild(createGridCell("Rain %", data.precip, "%"));
+      right.appendChild(createGridCell("Rain (in)", data.rain, " in"));
+      right.appendChild(createGridCell("Wind", data.wind, " mph"));
+      right.appendChild(createGridCell("Gust", data.gust, " mph"));
+
+      block.appendChild(left);
+      block.appendChild(right);
+      return block;
+    }
+
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        const now = new Date();
+        const nowIndex = data.hourly.time.findIndex(t => {
+          const dt = new Date(t);
+          return dt.getHours() === now.getHours() && dt.getDate() === now.getDate();
+        });
+
+        const container = document.getElementById("current-conditions");
+        const todayLabel = document.getElementById("today-label");
+        const nowLabel = document.getElementById("now-label");
+
+        const todayStr = now.toLocaleDateString(undefined, {
+          weekday: "long",
+          month: "short",
+          day: "numeric"
+        });
+        todayLabel.textContent = todayStr;
+
+        const hourLabels = ["Now", "+1 hr", "+2 hr"];
+        nowLabel.textContent = hourLabels.join(" | ");
+
+        for (let i = 0; i < 3; i++) {
+          const idx = nowIndex + i;
+          const emoji = getEmoji(data.hourly.weathercode[idx]);
+          const temp = data.hourly.temperature_2m[idx];
+          const precip = data.hourly.precipitation_probability[idx];
+          const rain = data.hourly.precipitation[idx];
+          const wind = data.hourly.windspeed_10m[idx];
+          const gust = data.hourly.windgusts_10m[idx];
+          const humidity = data.hourly.relative_humidity_2m[idx];
+          const score = getPlayabilityScore(precip, wind);
+
+          const block = createForecastBlock({
+            emoji,
+            temp,
+            precip,
+            rain,
+            wind,
+            gust,
+            humidity,
+            score
+          });
+
+          container.appendChild(block);
+        }
+      })
+      .catch(err => {
+        document.getElementById("current-conditions").textContent = "Error loading forecast.";
+        console.error(err);
+      });
+  </script>
+</body>
+</html>
