@@ -63,6 +63,13 @@
       text-align: center;
     }
 
+    .forecast-highlow {
+      font-size: 13px;
+      font-weight: 400;
+      color: #555;
+      margin-bottom: 4px;
+    }
+
     .forecast-block {
       background: var(--card-bg);
       border-radius: 12px;
@@ -76,17 +83,22 @@
     }
 
     .forecast-left {
-      display: flex;
-      flex-direction: column;
+      display: grid;
+      grid-template-rows: 1fr 1fr;
       align-items: center;
-      justify-content: space-between;
+      justify-items: center;
       width: 80px;
-      padding: 8px 0;
+    }
+
+    .condition-label {
+      font-size: 12px;
+      color: #555;
+      margin-bottom: 4px;
+      text-align: center;
     }
 
     .forecast-icon {
       font-size: 42px;
-      flex: 1;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -102,7 +114,6 @@
       align-items: center;
       justify-content: center;
       color: white;
-      flex: 1;
     }
 
     .play-low {
@@ -192,7 +203,31 @@
   <script>
     const lat = 38.0406;
     const lon = -84.5037;
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,precipitation,windspeed_10m,windgusts_10m,weathercode&temperature_unit=fahrenheit&windspeed_unit=mph&precipitation_unit=inch&timezone=America/New_York`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,precipitation,windspeed_10m,windgusts_10m,weathercode&daily=temperature_2m_max,temperature_2m_min,weathercode&temperature_unit=fahrenheit&windspeed_unit=mph&precipitation_unit=inch&timezone=America/New_York`;
+
+    const conditionText = {
+      0: "Sunny",
+      1: "Mostly Sunny",
+      2: "Partly Cloudy",
+      3: "Cloudy",
+      45: "Foggy",
+      48: "Foggy",
+      51: "Light Drizzle",
+      53: "Drizzle",
+      55: "Heavy Drizzle",
+      61: "Light Rain",
+      63: "Rain",
+      65: "Heavy Rain",
+      71: "Light Snow",
+      73: "Snow",
+      75: "Heavy Snow",
+      77: "Snow Grains",
+      85: "Snow Showers",
+      86: "Snow Showers",
+      95: "Thunderstorm",
+      96: "Thunderstorm",
+      99: "Thunderstorm"
+    };
 
     function getEmoji(code) {
       if (code === 0) return "☀️";
@@ -203,6 +238,10 @@
       if ([71, 73, 75, 77, 85, 86].includes(code)) return "❄️";
       if ([95, 96, 99].includes(code)) return "⛈️";
       return "❓";
+    }
+
+    function getCondition(code) {
+      return conditionText[code] || "Unknown";
     }
 
     function getPlayabilityScore(precip, wind) {
@@ -243,7 +282,7 @@
       return div;
     }
 
-    function createForecastWrapper(dateLabel, forecastData) {
+    function createForecastWrapper(dateLabel, forecastData, highLowText = "") {
       const wrapper = document.createElement("div");
       wrapper.className = "forecast-wrapper";
 
@@ -251,18 +290,28 @@
       dateDiv.className = "forecast-date";
       dateDiv.textContent = dateLabel;
 
+      if (highLowText) {
+        const highlow = document.createElement("div");
+        highlow.className = "forecast-highlow";
+        highlow.textContent = highLowText;
+        wrapper.appendChild(highlow);
+      }
+
       const block = document.createElement("div");
       block.className = "forecast-block";
 
       const left = document.createElement("div");
       left.className = "forecast-left";
 
+      const label = document.createElement("div");
+      label.className = "condition-label";
+      label.textContent = forecastData.condition;
       const icon = document.createElement("div");
       icon.className = "forecast-icon";
       icon.textContent = forecastData.emoji;
-
       const scoreBox = createPlayabilityBox(forecastData.score);
 
+      left.appendChild(label);
       left.appendChild(icon);
       left.appendChild(scoreBox);
 
@@ -309,6 +358,7 @@
 
           const wrapper = createForecastWrapper(label, {
             emoji: getEmoji(data.hourly.weathercode[idx]),
+            condition: getCondition(data.hourly.weathercode[idx]),
             temp: data.hourly.temperature_2m[idx],
             precip: data.hourly.precipitation_probability[idx],
             rain: data.hourly.precipitation[idx],
@@ -328,16 +378,22 @@
           const dateKey = dt.toISOString().slice(0, 10);
           if (hour === 17 && !added.has(dateKey) && dateKey !== todayKey) {
             added.add(dateKey);
-            const wrapper = createForecastWrapper(dt.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }), {
-              emoji: getEmoji(data.hourly.weathercode[i]),
-              temp: data.hourly.temperature_2m[i],
-              precip: data.hourly.precipitation_probability[i],
-              rain: data.hourly.precipitation[i],
-              wind: data.hourly.windspeed_10m[i],
-              gust: data.hourly.windgusts_10m[i],
-              humidity: data.hourly.relative_humidity_2m[i],
-              score: getPlayabilityScore(data.hourly.precipitation_probability[i], data.hourly.windspeed_10m[i])
-            });
+            const dailyIndex = data.daily.time.indexOf(dateKey);
+            const wrapper = createForecastWrapper(
+              dt.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }),
+              {
+                emoji: getEmoji(data.hourly.weathercode[i]),
+                condition: getCondition(data.hourly.weathercode[i]),
+                temp: data.hourly.temperature_2m[i],
+                precip: data.hourly.precipitation_probability[i],
+                rain: data.hourly.precipitation[i],
+                wind: data.hourly.windspeed_10m[i],
+                gust: data.hourly.windgusts_10m[i],
+                humidity: data.hourly.relative_humidity_2m[i],
+                score: getPlayabilityScore(data.hourly.precipitation_probability[i], data.hourly.windspeed_10m[i])
+              },
+              `High: ${data.daily.temperature_2m_max[dailyIndex]}°F / Low: ${data.daily.temperature_2m_min[dailyIndex]}°F`
+            );
             dailyContainer.appendChild(wrapper);
             if (added.size >= 6) break;
           }
