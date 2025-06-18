@@ -18,6 +18,65 @@
       --pastel-red: #fddcdc;
     }
 
+    /* Calendar Style */
+    .calendar-container {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .month-label {
+      display: flex;
+      font-size: 30px;
+      font-weight: bold;
+      justify-content: center;
+      background: lightcoral;
+      color: white;
+      border: 2px solid black;
+      border-bottom: 3px solid black;
+      border-top-left-radius: 10px;
+      border-top-right-radius: 10px;
+      padding: 5px;
+      text-shadow:
+      -1px -1px 0 black,
+      1px -1px 0 black,
+      -1px  1px 0 black,
+      1px  1px 0 black;
+    }
+
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, 40px);
+      gap: 5px;
+      text-align: center;
+      border: 2px solid black;
+      border-bottom-left-radius: 10px;
+      border-bottom-right-radius: 10px;
+      border-top: NONE;
+      padding: 5px;
+      padding-top: 10px;
+    }
+
+    .day {
+      font-weight: bold;
+    }
+
+    .cell {
+      padding: 10px;
+      border-radius: 50%;
+    }
+
+    .today {
+      background-color: dodgerblue;
+      color: white;
+      font-weight: bold;
+    }
+
+    /* Regular Style */
+
     body {
       margin: 0;
       font-family: var(--font);
@@ -84,10 +143,10 @@
 
     .forecast-left {
       display: grid;
-      grid-template-rows: 1fr 1fr;
+      grid-template-rows: 76px 30px 1fr;
       align-items: center;
       justify-items: center;
-      width: 80px;
+      width: 96px;
     }
 
     .condition-label {
@@ -95,6 +154,7 @@
       color: #555;
       margin-bottom: 4px;
       text-align: center;
+      align-self: start;
     }
 
     .forecast-icon {
@@ -191,6 +251,12 @@
 </head>
 <body>
   <header>Lexington Disc Golf Weather</header>
+<div class="calendar-container">
+  <div class="calendar-wrapper">
+    <div class="month-label" id="monthLabel"></div>
+    <div class="calendar" id="calendar"></div>
+  </div>
+</div>
   <div class="container">
     <div class="date-label" id="today-label">Loading...</div>
     <div class="section-label">Current Conditions</div>
@@ -229,16 +295,17 @@
       99: "Thunderstorm"
     };
 
-    function getEmoji(code) {
-      if (code === 0) return "☀️";
-      if ([1, 2].includes(code)) return "🌤️";
-      if (code === 3) return "☁️";
-      if ([45, 48].includes(code)) return "🌫️";
-      if ([51, 53, 55, 61, 63, 65].includes(code)) return "🌧️";
-      if ([71, 73, 75, 77, 85, 86].includes(code)) return "❄️";
-      if ([95, 96, 99].includes(code)) return "⛈️";
-      return "❓";
-    }
+function getIconUrl(code) {
+  const base = "https://raw.githubusercontent.com/michael-millett/weather-app/main/icons/";
+  if (code === 0) return base + "sunny.svg";
+  if ([1, 2].includes(code)) return base + "partly_cloudy.svg";
+  if (code === 3) return base + "cloudy.svg";
+  if ([45, 48].includes(code)) return base + "cloudy.svg";
+  if ([51, 53, 55, 61, 63, 65].includes(code)) return base + "rainy.svg";
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return base + "snowy.svg";
+  if ([95, 96, 99].includes(code)) return base + "thunderstorm.svg";
+  return base + "cloudy.svg"; // fallback
+}
 
     function getCondition(code) {
       return conditionText[code] || "Unknown";
@@ -308,11 +375,16 @@
       label.textContent = forecastData.condition;
       const icon = document.createElement("div");
       icon.className = "forecast-icon";
-      icon.textContent = forecastData.emoji;
+      const img = document.createElement("img");
+        img.src = forecastData.icon;
+        img.alt = forecastData.condition;
+        img.width = 96;
+        img.height = 96;
+        icon.appendChild(img);
       const scoreBox = createPlayabilityBox(forecastData.score);
 
-      left.appendChild(label);
       left.appendChild(icon);
+      left.appendChild(label);
       left.appendChild(scoreBox);
 
       const right = document.createElement("div");
@@ -357,7 +429,7 @@
           const label = i === 0 ? "Now" : forecastDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
           const wrapper = createForecastWrapper(label, {
-            emoji: getEmoji(data.hourly.weathercode[idx]),
+            icon: getIconUrl(data.hourly.weathercode[idx]),
             condition: getCondition(data.hourly.weathercode[idx]),
             temp: data.hourly.temperature_2m[idx],
             precip: data.hourly.precipitation_probability[idx],
@@ -380,20 +452,20 @@
             added.add(dateKey);
             const dailyIndex = data.daily.time.indexOf(dateKey);
             const wrapper = createForecastWrapper(
-              dt.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }),
-              {
-                emoji: getEmoji(data.hourly.weathercode[i]),
-                condition: getCondition(data.hourly.weathercode[i]),
-                temp: data.hourly.temperature_2m[i],
-                precip: data.hourly.precipitation_probability[i],
-                rain: data.hourly.precipitation[i],
-                wind: data.hourly.windspeed_10m[i],
-                gust: data.hourly.windgusts_10m[i],
-                humidity: data.hourly.relative_humidity_2m[i],
-                score: getPlayabilityScore(data.hourly.precipitation_probability[i], data.hourly.windspeed_10m[i])
-              },
-              `High: ${data.daily.temperature_2m_max[dailyIndex]}°F / Low: ${data.daily.temperature_2m_min[dailyIndex]}°F`
-            );
+  dt.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }),
+  {
+    icon: getIconUrl(data.hourly.weathercode[i]),
+    condition: getCondition(data.hourly.weathercode[i]),
+    temp: data.hourly.temperature_2m[i],
+    precip: data.hourly.precipitation_probability[i],
+    rain: data.hourly.precipitation[i],
+    wind: data.hourly.windspeed_10m[i],
+    gust: data.hourly.windgusts_10m[i],
+    humidity: data.hourly.relative_humidity_2m[i],
+    score: getPlayabilityScore(data.hourly.precipitation_probability[i], data.hourly.windspeed_10m[i])
+  },
+  `High: ${data.daily.temperature_2m_max[dailyIndex]}°F / Low: ${data.daily.temperature_2m_min[dailyIndex]}°F`
+);
             dailyContainer.appendChild(wrapper);
             if (added.size >= 6) break;
           }
@@ -404,5 +476,51 @@
         console.error(err);
       });
   </script>
+   <script>
+    const calendar = document.getElementById("calendar");
+    const monthLabel = document.getElementById("monthLabel");
+
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const date = today.getDate();
+
+    const monthNames = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+
+    const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    monthLabel.textContent = `${monthNames[month]} ${year}`;
+
+    // Add day names
+    for (let d of dayLabels) {
+      const cell = document.createElement("div");
+      cell.className = "day";
+      cell.textContent = d;
+      calendar.appendChild(cell);
+    }
+
+    const firstDay = new Date(year, month, 1).getDay();
+    const totalDays = new Date(year, month + 1, 0).getDate();
+
+    // Add empty cells before 1st of month
+    for (let i = 0; i < firstDay; i++) {
+      calendar.appendChild(document.createElement("div"));
+    }
+
+    // Add date cells
+    for (let d = 1; d <= totalDays; d++) {
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      cell.textContent = d;
+      if (d === date) cell.classList.add("today");
+      calendar.appendChild(cell);
+    }
+  </script>
 </body>
+<footer style="text-align: center; font-size: 12px; margin: 20px;">
+  Weather icons by <a href="https://www.amcharts.com/" target="_blank">amCharts</a>, licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank">CC BY 4.0</a>.
+</footer>
 </html>
